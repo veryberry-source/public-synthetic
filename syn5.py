@@ -760,7 +760,7 @@ if 'results_df' in st.session_state:
                     f"copy_f_{i}"
                 )
             with c2:
-                st.bar_chart(counts, color="#38BDF8")
+                st.bar_chart(counts, color=["#38BDF8"])
             st.divider()
 
     # ── 교차 분석 ──────────────────────────────────────────────────────────────
@@ -796,7 +796,12 @@ if 'results_df' in st.session_state:
                              use_container_width=True)
                 st_copy_to_clipboard(ctab_pct.to_csv(sep='\t'),
                                      "📋  비율 표 복사", "copy_cp")
-                st.bar_chart(ctab_pct, color="#818CF8")
+                # 컬럼 수에 맞게 색상 팔레트 동적 생성
+                palette = ["#818CF8", "#38BDF8", "#34D399", "#FB923C",
+                           "#F472B6", "#A78BFA", "#60A5FA", "#4ADE80"]
+                n_cols = len(ctab_pct.columns)
+                chart_colors = (palette * ((n_cols // len(palette)) + 1))[:n_cols]
+                st.bar_chart(ctab_pct, color=chart_colors)
         else:
             st.info("변수를 선택하면 교차표가 자동으로 생성됩니다.")
 
