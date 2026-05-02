@@ -6,7 +6,7 @@ from io import BytesIO
 # --- 페이지 설정 ---
 st.set_page_config(page_title="간편 표본 추출 도구 v2", layout="wide")
 st.title("🎯 간편 표본 추출 및 할당 도구 v2")
-st.markdown("분류형/수치형 변수의 **다중 리코드(누적)**를 지원하며, 입력 지연 및 적용 버그를 완벽히 해결했습니다.")
+st.markdown("분류형/수치형 변수의 **다중 리코드(누적)**를 지원")
 
 # --- 0. 세션 상태 초기화 ---
 if 'master_df' not in st.session_state: st.session_state['master_df'] = None
