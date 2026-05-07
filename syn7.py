@@ -590,7 +590,7 @@ with st.sidebar:
             manual_scenario = st.text_area(
                 "현재 시점의 배경/사건",
                 value=st.session_state.get('active_scenario',
-                    f"최근 주요 사건\n- "),
+                    f"오늘은 {date.today()}입니다.\n최근 주요 사건\n- "),
                 height=200, key="sc_manual")
             if st.button("✓  수동 입력 적용", key="apply_manual", use_container_width=True):
                 st.session_state['active_scenario'] = manual_scenario
@@ -675,10 +675,15 @@ with col_in2:
         pdf_file = st.file_uploader("설문지 PDF 업로드", type=["pdf"],
                                     key="pdf_uploader", label_visibility="collapsed")
         if pdf_file:
-            pdf_bytes = pdf_file.read()
+            # 리런 후에도 유지되도록 session_state에 저장
+            st.session_state['pdf_bytes'] = pdf_file.read()
+            st.session_state['pdf_name'] = pdf_file.name
+
+        if 'pdf_bytes' in st.session_state:
+            pdf_bytes = st.session_state['pdf_bytes']
             st.markdown(f"""
             <div style="margin:12px 0;">
-                <span class="stat-chip"><strong>{pdf_file.name}</strong></span>
+                <span class="stat-chip"><strong>{st.session_state.get('pdf_name','')}</strong></span>
                 <span class="stat-chip"><strong>{len(pdf_bytes)//1024} KB</strong></span>
             </div>""", unsafe_allow_html=True)
 
