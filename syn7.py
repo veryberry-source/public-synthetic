@@ -778,31 +778,65 @@ with col_in2:
         mode_label = "PDF 추출" if st.session_state.get('q_input_mode') == 'pdf' else "텍스트 입력"
         with st.expander(f"📋  문항 확인 — {mode_label} ({len(qs)}개)", expanded=True):
             for q in qs:
-                type_color = {"single": "#38BDF8", "open": "#34D399", "multi": "#FB923C"}.get(q['type'], "#94A3B8")
-                branch_html = ""
+                TYPE_COLOR = {"single": "#38BDF8", "open": "#34D399", "multi": "#FB923C"}
+                type_color = TYPE_COLOR.get(q['type'], "#94A3B8")
+
+                # 헤더 행: [문id] type 분기
+                header_parts = [
+                    f"<span style='font-family:\"DM Mono\",monospace;font-size:11px;"
+                    f"font-weight:600;color:{type_color};'>[{q['id']}]</span>",
+                    f"<span style='font-family:\"DM Mono\",monospace;font-size:9px;"
+                    f"padding:1px 6px;border-radius:3px;"
+                    f"background:rgba(255,255,255,.05);color:#64748B;'>{q['type']}</span>",
+                ]
                 if q.get("branch"):
                     branch_desc = " | ".join([f"{k}→{v}" for k, v in q["branch"].items()])
-                    branch_html = f"<span style='font-size:10px;color:#A78BFA;margin-left:8px;'>분기: {branch_desc}</span>"
-                options_html = ""
+                    header_parts.append(
+                        f"<span style='font-size:10px;color:#A78BFA;'>{_html.escape(branch_desc)}</span>"
+                    )
+                header_html = "<div style='display:flex;align-items:center;gap:8px;margin-bottom:6px;'>" \
+                              + "".join(header_parts) + "</div>"
+
+                # 질문 텍스트
+                q_text_safe = _html.escape(q['text'])
+                text_html = f"<div style='font-size:13px;color:#CBD5E1;line-height:1.6;'>{q_text_safe}</div>"
+
+                # 보기
+                opts_html = ""
                 if q.get("options"):
-                    opts = " / ".join([f"{k}.{_html.escape(str(v))}" for k, v in q["options"].items()])
-                    options_html = f"<div style='font-size:11px;color:#64748B;margin-top:4px;'>{opts}</div>"
-                st.markdown(f"""
-                <div style="background:#111827;border:1px solid #1E2533;border-radius:8px;
-                            padding:10px 14px;margin-bottom:6px;">
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-                        <span style="font-family:'DM Mono',monospace;font-size:11px;
-                                     font-weight:600;color:{type_color};">[{q['id']}]</span>
-                        <span style="font-family:'DM Mono',monospace;font-size:9px;
-                                     padding:1px 6px;border-radius:3px;
-                                     background:rgba(255,255,255,.05);color:#64748B;">
-                            {q['type']}
-                        </span>
-                        {branch_html}
-                    </div>
-                    <div style="font-size:13px;color:#CBD5E1;">{_html.escape(q['text'])[:80]}{'…' if len(_html.escape(q['text']))>80 else ''}</div>
-                    {options_html}
-                </div>""", unsafe_allow_html=True)
+                    opts_str = " &nbsp;/&nbsp; ".join(
+                        [f"{k}. {_html.escape(str(v))}" for k, v in q["options"].items()]
+                    )
+                    opts_html = f"<div style='font-size:11px;color:#64748B;margin-top:6px;line-height:1.8;'>{opts_str}</div>"
+
+                card_html = (
+                    "<div style='background:#111827;border:1px solid #1E2533;"
+                    "border-radius:8px;padding:12px 14px;margin-bottom:8px;'>"
+                    + header_html + text_html + opts_html
+                    + "</div>"
+                )
+                st.markdown(card_html, unsafe_allow_html=True)
+
+            # 엑셀 다운로드
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+            q_meta_df = pd.DataFrame([{
+                "문항ID":  q['id'],
+                "유형":    q['type'],
+                "질문":    q['text'],
+                "보기":    " / ".join([f"{k}.{v}" for k, v in q.get('options', {}).items()]),
+                "분기":    " | ".join([f"{k}→{v}" for k, v in q.get('branch', {}).items()]),
+            } for q in qs])
+            q_out = BytesIO()
+            with pd.ExcelWriter(q_out, engine='openpyxl') as wr:
+                q_meta_df.to_excel(wr, index=False, sheet_name="문항구조")
+            st.download_button(
+                "📥  문항 구조 Excel 다운로드",
+                q_out.getvalue(),
+                "questions_structure.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="dl_q_structure",
+                use_container_width=True,
+            )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
