@@ -6,6 +6,7 @@ from google.genai import types
 import re
 import json
 import base64
+import html as _html
 from datetime import date
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -758,7 +759,7 @@ with col_in2:
                     branch_html = f"<span style='font-size:10px;color:#A78BFA;margin-left:8px;'>분기: {branch_desc}</span>"
                 options_html = ""
                 if q.get("options"):
-                    opts = " / ".join([f"{k}.{v}" for k, v in list(q["options"].items())[:5]])
+                    opts = " / ".join([f"{k}.{_html.escape(str(v))}" for k, v in q["options"].items()])
                     options_html = f"<div style='font-size:11px;color:#64748B;margin-top:4px;'>{opts}</div>"
                 st.markdown(f"""
                 <div style="background:#111827;border:1px solid #1E2533;border-radius:8px;
@@ -773,7 +774,7 @@ with col_in2:
                         </span>
                         {branch_html}
                     </div>
-                    <div style="font-size:13px;color:#CBD5E1;">{q['text'][:80]}{'…' if len(q['text'])>80 else ''}</div>
+                    <div style="font-size:13px;color:#CBD5E1;">{_html.escape(q['text'])[:80]}{'…' if len(_html.escape(q['text']))>80 else ''}</div>
                     {options_html}
                 </div>""", unsafe_allow_html=True)
 
@@ -930,7 +931,7 @@ if 'results_df' in st.session_state and 'questions_structured' in st.session_sta
             skip_tag = f" <span style='font-size:11px;color:#64748B;'>SKIP {skip_n}건</span>" if skip_n else ""
 
             st.markdown(
-                f'<div class="q-label">[{q["id"]}] {q["text"][:60]}{"…" if len(q["text"])>60 else ""}'
+                f'<div class="q-label">[{q["id"]}] {_html.escape(q["text"])[:60]}{"…" if len(_html.escape(q["text"]))>60 else ""}'
                 f'{branch_tag}{skip_tag}</div>',
                 unsafe_allow_html=True)
 
@@ -948,7 +949,7 @@ if 'results_df' in st.session_state and 'questions_structured' in st.session_sta
             st.info("자유응답 문항이 없습니다.")
         for q in open_qs:
             st.markdown(
-                f'<div class="q-label open">[{q["id"]}] {q["text"][:80]}{"…" if len(q["text"])>80 else ""}</div>',
+                f'<div class="q-label open">[{q["id"]}] {_html.escape(q["text"])[:80]}{"…" if len(_html.escape(q["text"]))>80 else ""}</div>',
                 unsafe_allow_html=True)
 
             open_df = res_df[[q['id']] + [c for c in demo_cols[:3]]].copy()
