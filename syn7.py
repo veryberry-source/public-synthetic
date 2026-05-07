@@ -169,10 +169,13 @@ def extract_questions_from_pdf(client, model: str, pdf_bytes: bytes) -> list[dic
 - 분기 없으면 빈 객체 {} 로 표시
 - 값은 이동할 문항 id (예: "문3")
 
-[주의]
+[주의 — 반드시 준수]
 - options의 key는 반드시 문자열 숫자 ("1", "9", "97" 등)
 - 자유응답(open)은 options를 {} 로
-- JSON만 출력, 마크다운 코드블록 금지"""
+- JSON만 출력, 마크다운 코드블록 금지
+- text 및 options 값 안에 큰따옴표(")를 절대 사용하지 말 것.
+  큰따옴표가 필요한 경우 작은따옴표(')로 대체하거나 해당 부분을 생략하세요.
+  예) "굳이 말씀하신다면 '잘하고 있다'와 '잘못하고 있다' 중 어느 쪽입니까?" → 작은따옴표 사용 유지"""
 
     def _call_and_parse(temperature=0.0):
         resp = client.models.generate_content(
@@ -195,15 +198,38 @@ def extract_questions_from_pdf(client, model: str, pdf_bytes: bytes) -> list[dic
 
     # 1차 시도
     raw = _call_and_parse(temperature=0.0)
-    try:
-        qs = json.loads(raw)
-        return [q for q in qs if not any(q.get('id','').upper().startswith(p) for p in ('SQ', 'D'))]
-    except json.JSONDecodeError:
-        pass
+
+    def _safe_parse(text):
+        """JSON 파싱 시도 - 실패 시 문자열 값 내 큰따옴표를 작은따옴표로 치환 후 재시도"""
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+        # 각 JSON 문자열 값을 개별 파싱해서 내부 " 를 ' 로 치환
+        try:
+            # "key": "value" 패턴에서 value 내부의 " 를 ' 로 변환
+            def replace_inner_quotes(m):
+                inner = m.group(1)
+                # 이미 이스케이프된 \" 는 건드리지 않고, 날것의 " 만 ' 로 변환
+                inner = re.sub(r'(?<!\\)"', "'", inner)
+                return f'"{inner}"'
+            sanitized = re.sub(r'"((?:[^"\\]|\\.)*)"', replace_inner_quotes, text)
+            return json.loads(sanitized)
+        except Exception:
+            return None
+
+    result = _safe_parse(raw)
+    if result is not None:
+        return [q for q in result if not any(q.get('id','').upper().startswith(p) for p in ('SQ', 'D'))]
 
     # 2차 시도: Gemini에게 JSON만 정제해달라고 요청
     fix_prompt = f"""아래 텍스트는 JSON 배열인데 파싱 오류가 있습니다.
-올바른 JSON 배열로만 수정하여 출력하세요. 마크다운 코드블록 없이 JSON만 출력하세요.
+파싱 오류의 주요 원인은 JSON 문자열 값 안에 이스케이프 처리되지 않은 큰따옴표(")가 포함된 것입니다.
+
+수정 규칙:
+1. 문자열 값 내부의 큰따옴표는 반드시 \" 로 이스케이프하세요.
+2. JSON 구조(키, 배열, 객체)는 절대 변경하지 마세요.
+3. 마크다운 코드블록 없이 JSON만 출력하세요.
 
 {raw}"""
     fix_resp = client.models.generate_content(
