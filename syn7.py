@@ -406,7 +406,7 @@ def generate_scenario_with_grounding(api_key, model, categories, ref_date, extra
 {output_format}
 
 [작성 규칙]
-- 각 카테고리당 3~5개 이슈만 작성 (과도한 상세 금지)
+- 각 카테고리와 추가 키워드별 3~5개 이슈만 작성 (과도한 상세 금지)
 - 일반인이 포털 헤드라인·TV 뉴스 수준으로 알 법한 내용으로 요약
 - 날짜·인물명 등 세부 수치는 꼭 필요한 경우만 포함
 - 한 항목은 한 문장으로 작성
