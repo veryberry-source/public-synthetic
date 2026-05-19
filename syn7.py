@@ -394,9 +394,10 @@ def generate_scenario_with_grounding(api_key, model, categories, ref_date, extra
 
     prompt = f"""오늘은 {ref_date}입니다.
 
-아래 각 카테고리에 대해 지정된 검색어로 Google 검색을 실행하고,
+아래 각 카테고리와 추가 키워드에 대해 지정된 검색어로 Google 검색을 실행하고,
 {ref_date} 기준 최근 2주간 한국에서 일반인이 뉴스·SNS를 통해 접했을 만한
-주요 사건·이슈를 카테고리별로 간결하게 작성하세요.
+주요 사건·이슈를 카테고리별로 간결하게 작성하세요. 
+추가 키워드는 반드시 포함하세요.
 
 [카테고리별 검색 지시]
 {search_instructions}
