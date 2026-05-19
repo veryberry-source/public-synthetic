@@ -358,61 +358,37 @@ def process_persona_structured(client, model_choice, row_data, scenario,
 # 사회적 맥락 생성 (syn6 그대로 유지)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def generate_scenario_with_grounding(api_key, model, categories, ref_date, extra_context=""):
-    CATEGORY_SEARCH = {
-        "선거·공천":   "2026 지방선거 공천 최신",
-        "정당·이념":   "한국 정당 정치 최신 뉴스",
-        "정책·입법":   "국회 법안 정책 최신",
-        "행정·사법":   "정부 행정 사법 최신",
-        "부동산":      "2026 부동산 시장 최신",
-        "주식·금융":   "코스피 주식 금융 최신",
-        "고용·임금":   "고용 임금 취업 최신",
-        "물가·소비":   "물가 소비 경제 최신",
-        "교육":        "교육 입시 학교 최신",
-        "복지·의료":   "복지 의료 건강 최신",
-        "젠더·세대":   "젠더 세대 갈등 최신",
-        "범죄·안전":   "범죄 치안 안전 최신",
-        "수도권 이슈":  "서울 경기 인천 지역 현안 최신",
-        "영남 이슈":    "부산 대구 경북 경남 지역 현안 최신",
-        "호남 이슈":    "광주 전남 전북 지역 현안 최신",
-        "충청 이슈":    "대전 세종 충남 충북 지역 현안 최신",
-        "한미관계":    "한미 관계 외교 최신",
-        "한중관계":    "한중 관계 외교 최신",
-        "한일관계":    "한일 관계 외교 최신",
-        "글로벌 이슈":  "국제 글로벌 이슈 최신",
-    }
+def generate_scenario_with_grounding(api_key, model, ref_date, keywords=""):
     client = genai.Client(api_key=api_key)
+
+    kw_list = [k.strip() for k in keywords.split(",") if k.strip()]
     search_instructions = "\n".join([
-        f'- [{cat}] 검색어: "{CATEGORY_SEARCH.get(cat, cat + " 최신 뉴스")}"'
-        for cat in categories
+        f'- "{kw}" 관련 최신 뉴스 검색' for kw in kw_list
     ])
     output_format = "\n\n".join([
-        f"[{cat}]\n- (구체적 사건명과 현황)\n- (추가 이슈, 있을 경우)"
-        for cat in categories
+        f"[{kw}]\n- (구체적 사건명과 현황)" for kw in kw_list
     ])
-    extra_line = f"추가 키워드: {extra_context}" if extra_context else ""
 
     prompt = f"""오늘은 {ref_date}입니다.
 
-아래 각 카테고리와 추가 키워드에 대해 지정된 검색어로 Google 검색을 실행하고,
+아래 키워드별로 Google 검색을 실행하고,
 {ref_date} 기준 최근 2주간 한국에서 일반인이 뉴스·SNS를 통해 접했을 만한
-주요 사건·이슈를 카테고리별로 간결하게 작성하세요. 
-추가 키워드는 반드시 포함하세요.
+주요 사건·이슈를 키워드별로 간결하게 작성하세요.
 
-[카테고리별 검색 지시]
+[키워드별 검색 지시]
 {search_instructions}
 
-[출력 형식 — 선택된 카테고리만]
+[출력 형식]
+오늘은 {ref_date}입니다.
+
 {output_format}
 
 [작성 규칙]
-- 각 카테고리와 추가 키워드별 3~5개 이슈만 작성 (과도한 상세 금지)
+- 각 키워드당 1~2개 이슈만 작성
 - 일반인이 포털 헤드라인·TV 뉴스 수준으로 알 법한 내용으로 요약
-- 날짜·인물명 등 세부 수치는 꼭 필요한 경우만 포함
 - 한 항목은 한 문장으로 작성
 - 여론조사·지지율·오차범위 등 조사 수치는 절대 포함하지 말 것
-- 여론·민심의 방향을 평가하거나 암시하는 표현 금지
-{extra_line}"""
+- 여론·민심의 방향을 평가하거나 암시하는 표현 금지"""
 
     grounding_tool = types.Tool(google_search=types.GoogleSearch())
     resp = client.models.generate_content(
@@ -541,71 +517,39 @@ with st.sidebar:
 
         with sc_tab_ai:
             ref_date = st.date_input("기준 날짜", value=date.today(), key="sc_date")
-            st.markdown("<div style='font-size:12px;color:#94A3B8;margin-bottom:6px;'>수집 카테고리</div>", unsafe_allow_html=True)
 
-            ca, cb = st.columns(2)
-            with ca:
-                cat_election = st.checkbox("선거·공천",  value=True,  key="cat_election")
-                cat_party    = st.checkbox("정당·이념",  value=True,  key="cat_party")
-                cat_policy   = st.checkbox("정책·입법",  value=False, key="cat_policy")
-                cat_govt     = st.checkbox("행정·사법",  value=False, key="cat_govt")
-                cat_realestate=st.checkbox("부동산",     value=False, key="cat_real")
-                cat_finance  = st.checkbox("주식·금융",  value=False, key="cat_fin")
-                cat_labor    = st.checkbox("고용·임금",  value=False, key="cat_labor")
-                cat_price    = st.checkbox("물가·소비",  value=False, key="cat_price")
-                cat_edu      = st.checkbox("교육",       value=False, key="cat_edu")
-                cat_welfare  = st.checkbox("복지·의료",  value=False, key="cat_welf")
-            with cb:
-                cat_gender   = st.checkbox("젠더·세대",  value=False, key="cat_gender")
-                cat_crime    = st.checkbox("범죄·안전",  value=False, key="cat_crime")
-                cat_metro    = st.checkbox("수도권",     value=False, key="cat_metro")
-                cat_yeongnam = st.checkbox("영남",       value=False, key="cat_yeong")
-                cat_honam    = st.checkbox("호남",       value=False, key="cat_honam")
-                cat_chung    = st.checkbox("충청",       value=False, key="cat_chung")
-                cat_us       = st.checkbox("한미관계",   value=False, key="cat_us")
-                cat_cn       = st.checkbox("한중관계",   value=False, key="cat_cn")
-                cat_jp       = st.checkbox("한일관계",   value=False, key="cat_jp")
-                cat_global   = st.checkbox("글로벌",     value=False, key="cat_global")
+            extra_kw = st.text_input(
+                "검색 키워드 (쉼표로 구분)",
+                placeholder="예: 지방선거, 대구시장, 부동산, 물가",
+                key="sc_extra",
+            )
 
-            extra_kw = st.text_input("추가 키워드", placeholder="예: 이재명, 반도체", key="sc_extra")
             gen_btn = st.button("⬡  맥락 자동 생성", key="gen_scenario", use_container_width=True)
 
             if gen_btn:
                 if not api_key:
                     st.error("API Key를 먼저 입력해 주세요.")
+                elif not extra_kw.strip():
+                    st.warning("키워드를 하나 이상 입력해 주세요.")
                 else:
-                    cat_map = {
-                        "선거·공천": cat_election, "정당·이념": cat_party,
-                        "정책·입법": cat_policy,   "행정·사법": cat_govt,
-                        "부동산":    cat_realestate,"주식·금융": cat_finance,
-                        "고용·임금": cat_labor,    "물가·소비": cat_price,
-                        "교육":      cat_edu,       "복지·의료": cat_welfare,
-                        "젠더·세대": cat_gender,   "범죄·안전": cat_crime,
-                        "수도권 이슈": cat_metro,  "영남 이슈": cat_yeongnam,
-                        "호남 이슈":  cat_honam,   "충청 이슈": cat_chung,
-                        "한미관계":  cat_us,       "한중관계":  cat_cn,
-                        "한일관계":  cat_jp,       "글로벌 이슈": cat_global,
-                    }
-                    selected_cats = [k for k, v in cat_map.items() if v]
-                    if not selected_cats:
-                        st.warning("카테고리를 하나 이상 선택해 주세요.")
-                    else:
-                        with st.spinner("🔍 최신 뉴스 수집 중…"):
-                            try:
-                                generated, removed = generate_scenario_with_grounding(
-                                    api_key, model_choice, selected_cats,
-                                    str(ref_date), extra_kw)
-                                st.session_state['auto_scenario'] = generated
-                                st.session_state['scenario_date'] = str(ref_date)
-                                if removed:
-                                    st.warning(f"⚠️ 여론조사 관련 표현 {len(removed)}줄 자동 제거")
-                                    with st.expander("제거된 내용"):
-                                        for r in removed:
-                                            st.markdown(f"<div style='font-family:\"DM Mono\",monospace;font-size:11px;color:#64748B;text-decoration:line-through;'>✕ {r}</div>", unsafe_allow_html=True)
-                                else:
-                                    st.success("맥락 생성 완료 ✓")
-                            except Exception as e:
-                                st.error(f"생성 오류: {e}")
+                    with st.spinner("🔍 최신 뉴스 수집 중…"):
+                        try:
+                            generated, removed = generate_scenario_with_grounding(
+                                api_key, model_choice, str(ref_date), extra_kw)
+                            st.session_state['auto_scenario'] = generated
+                            st.session_state['scenario_date'] = str(ref_date)
+                            if removed:
+                                st.warning(f"⚠️ 여론조사 관련 표현 {len(removed)}줄 자동 제거")
+                                with st.expander("제거된 내용"):
+                                    for r in removed:
+                                        st.markdown(
+                                            f"<div style='font-family:\"DM Mono\",monospace;"
+                                            f"font-size:11px;color:#64748B;text-decoration:line-through;'>"
+                                            f"✕ {r}</div>", unsafe_allow_html=True)
+                            else:
+                                st.success("맥락 생성 완료 ✓")
+                        except Exception as e:
+                            st.error(f"생성 오류: {e}")
 
             if 'auto_scenario' in st.session_state:
                 edited_scenario = st.text_area(
